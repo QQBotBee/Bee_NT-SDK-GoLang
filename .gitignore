@@ -1,0 +1,47 @@
+# Build scratch and published artifacts
+/build/
+/temp/
+/plugin_data/
+
+# Native / Go binaries, linker intermediates and test output
+*.dll
+*.exe
+*.res
+*.lib
+*.pdb
+*.obj
+*.o
+*.a
+*.exp
+*.ilk
+*.test
+*.coverprofile
+coverage.out
+/coverage/
+*.log
+*.dmp
+
+# Local editors, agent work areas and worktrees
+.superpowers/
+.worktrees/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local snapshots and conflict / backup files
+/e.txt
+/local-snapshots/
+/source-snapshots/
+/.snapshots/
+*.bak
+*.orig
+*.rej
+*.tmp
+
+# worker_runtime.go and all *_test.go files are maintained SDK sources.
+# Do not copy the legacy SDK rules that ignore those files.

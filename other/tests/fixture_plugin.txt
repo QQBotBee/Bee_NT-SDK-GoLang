@@ -1,0 +1,7 @@
+package main
+const (
+    PluginName = "BeeNT_Bridge_Test"
+    PluginAuthor = "SDK tests"
+    PluginVersion = "1.0"
+    PluginDescription = "BeeNT protocol integration test"
+)

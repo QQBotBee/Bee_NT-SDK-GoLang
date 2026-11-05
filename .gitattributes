@@ -1,0 +1,33 @@
+# Normalize maintained text without changing its encoding or UTF-8 BOM.
+* text=auto
+.gitattributes text eol=lf
+.gitignore text eol=lf
+*.go text eol=lf
+*.mod text eol=lf
+*.sum text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.ps1 text eol=lf
+*.c text eol=lf
+*.h text eol=lf
+*.S text eol=lf
+*.s text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# Windows command / export files must be authored as CRLF.
+# Preserve their bytes exactly, following the original Bee SDK policy.
+*.bat binary
+*.def binary
+
+# Generated binary files are never subject to text conversion.
+*.dll binary
+*.exe binary
+*.res binary
+*.lib binary
+*.pdb binary
+*.obj binary
+*.o binary
+*.a binary
+*.dmp binary
