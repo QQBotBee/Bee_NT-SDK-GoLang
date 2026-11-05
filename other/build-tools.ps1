@@ -1,5 +1,26 @@
 # Build-time helpers; this script does not change global Go settings or PATH.
 
+function Copy-BeeNTWorkerSources([string]$ProjectPath, [string]$Destination, [string]$PluginSource = '') {
+    New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+    Get-ChildItem -LiteralPath $ProjectPath -Filter '*.go' -File |
+        Where-Object { $_.Name -notlike '*_test.go' } | Copy-Item -Destination $Destination
+    Copy-Item -LiteralPath (Join-Path $ProjectPath 'go.mod'), (Join-Path $ProjectPath 'go.sum') -Destination $Destination
+    foreach ($name in @('worker_runtime.go', 'settings_nonwindows.go')) {
+        $source = [IO.File]::ReadAllText((Join-Path $ProjectPath ('other\' + $name)), [Text.Encoding]::UTF8)
+        if ($name -eq 'worker_runtime.go') {
+            $tag = "//go:build beent_worker_runtime`n`n"
+            if (-not $source.StartsWith($tag)) { throw 'Worker source is missing its template build tag' }
+            $source = $source.Substring($tag.Length)
+        } else {
+            $tag = '//go:build !windows && beent_worker_runtime'
+            if (-not $source.StartsWith($tag)) { throw 'Non-Windows source is missing its template build tag' }
+            $source = '//go:build !windows' + $source.Substring($tag.Length)
+        }
+        [IO.File]::WriteAllText((Join-Path $Destination $name), $source, (New-Object Text.UTF8Encoding($false)))
+    }
+    if ($PluginSource) { Copy-Item -LiteralPath $PluginSource -Destination (Join-Path $Destination 'plugin_main.go') -Force }
+}
+
 function Get-BeeNTSha256([string]$Path) {
     $stream = [IO.File]::OpenRead((Resolve-Path -LiteralPath $Path).Path)
     $algorithm = [Security.Cryptography.SHA256]::Create()

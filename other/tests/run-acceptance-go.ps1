@@ -6,12 +6,15 @@ $metadataPackage = Join-Path $scratch 'other\buildmeta'
 New-Item -ItemType Directory -Force -Path $metadataPackage | Out-Null
 # Go 1.20 vet cannot open a virtual new file supplied through -overlay. Use a
 # physical isolated package so both test and vet inspect the acceptance source.
-Get-ChildItem -LiteralPath $project -Filter '*.go' -File | Copy-Item -Destination $scratch
-Copy-Item -LiteralPath (Join-Path $project 'go.mod'), (Join-Path $project 'go.sum') -Destination $scratch
+. (Join-Path $project 'other\build-tools.ps1')
+Copy-BeeNTWorkerSources -ProjectPath $project -Destination $scratch
+$localTests = Join-Path $project 'other\tests\local'
+if (Test-Path -LiteralPath $localTests -PathType Container) {
+    Get-ChildItem -LiteralPath $localTests -Filter '*_test.go' -File | Copy-Item -Destination $scratch
+}
 Get-ChildItem -LiteralPath (Join-Path $project 'other\buildmeta') -Filter '*.go' -File | Copy-Item -Destination $metadataPackage
 Copy-Item -LiteralPath (Join-Path $project 'other\tests\fixtures\acceptance\plugin_main.go.txt') -Destination (Join-Path $scratch 'plugin_main.go') -Force
 Copy-Item -LiteralPath (Join-Path $project 'other\tests\fixtures\acceptance\plugin_main_test.go.txt') -Destination (Join-Path $scratch 'acceptance_plugin_test.go')
-. (Join-Path $project 'other\build-tools.ps1')
 $savedGoos = $env:GOOS
 $savedGoarch = $env:GOARCH
 $savedCgo = $env:CGO_ENABLED

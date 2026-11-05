@@ -21,12 +21,13 @@
 开始前按顺序完整读取：
 1. AGENTS.md、README.md、docs/AI开发指南.md。
 2. plugin_main.go，确认四项元数据与全部业务回调的真实签名。
-3. docs/API参考.md、beent_sdk.go、api_methods.go、types.go。
-4. worker_runtime.go、ipc.go，理解Worker初始化、事件串行处理、并发API和停止流程。
-5. 如改设置，读取docs/设置窗口开发规范.md、settings.go、settings_nonwindows.go。
+3. docs/API参考.md、beent_sdk.go，确认API、类型、事件常量和IPC。
+4. other/worker_runtime.go，理解Worker初始化、事件串行处理、并发API和停止流程。
+5. 如改设置，读取docs/设置窗口开发规范.md、settings.go、other/settings_nonwindows.go。
 6. docs/验证记录.md，了解已有验证范围；业务验证直接使用真实BeeNT框架。
 
-通常只修改plugin_main.go、独立业务/配置辅助文件及对应测试；需要设置时修改settings.go。
+通常只修改plugin_main.go和独立业务/配置辅助文件；需要设置时修改settings.go。
+本地SDK测试放在other/tests/local/，*_test.go由Git忽略，不提交。
 不要擅改SDK操作码、参数顺序、IPC、原生C壳、导出、工具链和构建脚本。
 发现需求确实需要这些底层变更时，先指出现有能力缺口和必要范围，再单独处理。
 
@@ -52,10 +53,10 @@
 | 文件 | 用途与边界 |
 | --- | --- |
 | [plugin_main.go](../plugin_main.go) | 四项元数据、初始化、启用/禁用、消息、事件和设置入口，主要业务修改位置 |
-| 业务辅助 `.go` / 本地 `*_test.go` | 解析、权限、配置、状态、外部服务；继续使用 `package main`，`*_test.go` 由 Git 忽略，不提交 |
+| 根目录业务辅助 `.go` / `other/tests/local/*_test.go` | 解析、权限、配置、状态、外部服务；继续使用 `package main`，本地测试由 Git 忽略，不提交 |
 | [settings.go](../settings.go) | Windows 原生窗口模型、布局、绘制和消息处理；只在需要界面变化时修改 |
-| [beent_sdk.go](../beent_sdk.go)、[api_methods.go](../api_methods.go)、[types.go](../types.go) | SDK构造、97个API、返回类型、31个事件值；业务开发先读取并复用 |
-| [worker_runtime.go](../worker_runtime.go)、[ipc.go](../ipc.go) | 事件分发、唯一reader、API请求关联与超时；普通业务无需修改 |
+| [beent_sdk.go](../beent_sdk.go) | 统一SDK：构造、97个API、返回类型、事件与请求常量、编码和IPC |
+| [worker_runtime.go](../other/worker_runtime.go) | Worker入口、事件分发与唯一reader；构建时复制到temp，普通业务无需修改 |
 | [other/](../other/) | 原生壳、导出、资源、内部构建实现与PE门禁；修改需单独验证运行时 |
 | `build/`、`temp/` | 生成物，不作为业务源码修改，不提交临时Worker与测试输出 |
 
@@ -90,7 +91,7 @@ BeeNT宿主（x86）
 | `onGroupMessage(groupID, userID, message, messageID string) int` | 群消息，四个字符串参数 |
 | `onEvent(eventType, sourceID, userNickname, userID, operatorNickname, operatorID, message, flag string) int` | 八个字符串字段，保留空值和原始flag |
 
-`MessageContinue`、`MessageIgnore` 均为 `0`；`MessageIntercept` 为 `1`。只对明确要求拦截的消息返回 `1`，不要因处理成功就默认拦截。事件类型使用 `types.go` 的字符串常量，例如 `EventPoke`、`EventGroupCardChanged`；值范围为 `1`—`31`，包括 `GroupRequestApply` / `GroupRequestInvite`。触发者与操作者可能不同，不能互换；请求处理时使用原始 `flag`。
+`MessageContinue`、`MessageIgnore` 均为 `0`；`MessageIntercept` 为 `1`。只对明确要求拦截的消息返回 `1`，不要因处理成功就默认拦截。事件类型使用 `beent_sdk.go` 的字符串常量，例如 `EventPoke`、`EventGroupCardChanged`；值范围为 `1`—`31`，包括 `GroupRequestApply` / `GroupRequestInvite`。触发者与操作者可能不同，不能互换；请求处理时使用原始 `flag`。
 
 业务事件按接收顺序执行。回调里长时间休眠、HTTP等待或无限循环会延迟后续事件；长任务应交给可取消的后台任务。Worker唯一reader在回调执行期间继续分发API结果，回调内同步调用SDK和回调外后台调用均受支持。
 
@@ -208,7 +209,7 @@ build.bat MyPlugin.dll
 
 日常双击根目录 `build.bat`，或在CMD使用上面的命令编译当前业务；构建结束保留窗口显示结果。自动化可选加 `--no-pause`。构建完成后，将 `build/` 下生成的插件DLL导入真实BeeNT框架，验证本次功能。内部实现位于 `other/build.ps1`，供构建维护时使用，不是额外的日常入口；其中的 `-GoExecutable` 必须指向实际Go1.20.14可执行文件，版本不符时构建应失败。
 
-开发检查运行 `gofmt`、`go test -count=1 ./...`、`go vet ./...`，并使用精确Go1.20.14在amd64/386验证。运行时或并发变化在工具链和宿主支持时运行 `go test -race ./...`；当前环境已有ThreadSanitizer启动失败记录，实际失败必须如实报告，不能写成race通过。
+修改Go源码后运行 `gofmt`。SDK维护通过 `other/tests/run-acceptance-go.ps1` 在temp中组装完整源码，带上 `other/tests/local/` 中存在的本地测试，使用精确Go1.20.14在amd64/386运行测试和vet。运行时或并发变化在工具链和宿主支持时，对组装后的源码包运行race；当前环境已有ThreadSanitizer启动失败记录，实际失败必须如实报告，不能写成race通过。
 
 修改业务要测试命令匹配、权限、原会话路由、错误返回、配置持久化及禁用取消，然后在真实BeeNT中验证消息收发、设置与生命周期。设置变化可由维护者补跑窗口测试；运行时变化才扩展内部原生边界回归。已有验证说明见 [验证记录](验证记录.md)，此前实机操作记录见 [历史验收](history/BeeNT实机验收.md)。不要直接双击Worker程序代替真实框架验证，它需要宿主参数和IPC连接。
 

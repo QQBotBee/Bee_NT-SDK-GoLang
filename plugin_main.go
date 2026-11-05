@@ -200,7 +200,7 @@ func onGroupMessage(
 // userID 与 operatorID 可能不同，例如被禁言成员与执行禁言的管理员，不能互换。
 // 返回 MessageContinue 继续后续处理，MessageIntercept 拦截当前事件。
 func onEvent(
-	eventType string, // 事件类型，使用 types.go 中的字符串常量，不使用旧 Bee 的事件编号
+	eventType string, // 事件类型，使用 beent_sdk.go 中的字符串常量，不使用旧 Bee 的事件编号
 	sourceID string, // 事件来源，群事件通常为群号，好友事件按框架提供的来源处理
 	userNickname string, // 触发者或被操作对象的昵称，可能为空
 	userID string, // 触发者或被操作对象的 QQ

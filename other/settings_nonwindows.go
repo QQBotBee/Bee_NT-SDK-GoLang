@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build !windows && beent_worker_runtime
 
 package main
 

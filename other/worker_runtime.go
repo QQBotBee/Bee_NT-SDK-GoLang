@@ -1,3 +1,5 @@
+//go:build beent_worker_runtime
+
 package main
 
 import (

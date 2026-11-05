@@ -253,7 +253,7 @@ func onGroupMessage(
 }
 ```
 
-事件类型使用 `types.go` 中的常量，例如 `EventPoke`、`EventGroupCardChanged`、`EventFriendRequest`。`sourceID` 是事件来源，`userID` 与 `operatorID` 分别表示触发者/被操作对象和操作者，不能互换；各事件的部分字段可以为空。处理验证请求时保留原始 `flag`。
+事件类型使用 `beent_sdk.go` 中的常量，例如 `EventPoke`、`EventGroupCardChanged`、`EventFriendRequest`。`sourceID` 是事件来源，`userID` 与 `operatorID` 分别表示触发者/被操作对象和操作者，不能互换；各事件的部分字段可以为空。处理验证请求时保留原始 `flag`。
 
 ### 消息处理结果
 
@@ -530,12 +530,7 @@ func defaultSettingsModel() settingsModel {
 ├── .gitignore / .gitattributes  # 生成物忽略、文本与字节保存规则
 ├── plugin_main.go               # 插件信息、生命周期、消息和事件业务
 ├── settings.go                  # Windows 原生设置窗口
-├── settings_nonwindows.go       # 非 Windows 编译桩
-├── beent_sdk.go                 # SDK 构造、命令协议、编码和数据目录
-├── api_methods.go               # 97 个具名 API 与 Friend/Group 链式方法
-├── types.go                     # 信息结构、列表解析、事件与缓存常量
-├── ipc.go                       # API 请求关联、并发与超时
-├── worker_runtime.go            # Worker 入口、消息读取与事件分发
+├── beent_sdk.go                 # 统一 SDK：97 个 API、类型、事件、编码与 IPC
 ├── build.bat                    # 唯一构建入口
 ├── go.mod / go.sum              # Go 1.20 兼容声明与模块依赖
 ├── docs/
@@ -545,7 +540,9 @@ func defaultSettingsModel() settingsModel {
 │   └── 设置窗口开发规范.md     # 窗口线程、布局、资源与关闭约束
 ├── other/
 │   ├── build.ps1               # build.bat 调用的内部构建实现
-│   ├── build-tools.ps1         # 固定工具链与产物内部检查
+│   ├── build-tools.ps1         # 临时源码组装、固定工具链与产物内部检查
+│   ├── worker_runtime.go       # Worker 入口、消息读取与事件分发
+│   ├── settings_nonwindows.go  # 非 Windows 编译桩
 │   ├── beent_bridge.c          # 原生 stdcall 壳、框架 API 与 Worker 管理
 │   ├── beent_crt.h             # 无 CRT 辅助实现
 │   ├── beent_stack_probe.S     # x86 栈探测
@@ -556,7 +553,7 @@ func defaultSettingsModel() settingsModel {
 └── temp/                       # 工具链缓存与临时文件，不提交
 ```
 
-根目录 Go 文件同属一个插件包，按 SDK、业务、IPC 和窗口职责拆分。`worker_runtime.go` 是维护源码，直接参与编译；本地 `*_test.go` 由 Git 忽略，不随仓库分发。底层实现和测试工具集中在 `other/`，日常业务开发通过根目录 `build.bat` 构建。
+根目录保留插件业务、统一 SDK 和设置窗口，以及构建入口、模块文件和项目文档，共 10 个文件。Worker、平台编译桩、原生壳和构建工具集中在 `other/`。构建脚本将所需 Go 源码复制到 `temp/` 后编译，完成后清理；根目录不会生成临时源码。本地测试放在 `other/tests/local/` 等内部目录，`*_test.go` 由 Git 忽略，不随仓库分发。
 
 ## 架构说明
 

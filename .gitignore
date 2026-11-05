@@ -46,4 +46,4 @@ Desktop.ini
 # Local test files
 *_test.go
 
-# worker_runtime.go is required SDK source and must remain tracked.
+# other/worker_runtime.go is maintained source; build copies live under /temp/.

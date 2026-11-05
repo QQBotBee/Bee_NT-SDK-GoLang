@@ -137,7 +137,7 @@ _ = api.Log("日志内容")
 
 ## 事件、缓存与数据目录
 
-31 个事件值见 `types.go` 的 `Event...`、`GroupRequestApply`、`GroupRequestInvite` 常量，都是字符串。缓存类型使用 `CacheAll`、`CacheFriendList`、`CacheGroupList`、`CacheGroupMemberList`、`CacheGroupAdminList`（0–4）。
+31 个事件值见 `beent_sdk.go` 的 `Event...`、`GroupRequestApply`、`GroupRequestInvite` 常量，都是字符串。缓存类型使用 `CacheAll`、`CacheFriendList`、`CacheGroupList`、`CacheGroupMemberList`、`CacheGroupAdminList`（0–4）。
 
 `Friend(id)` / `Group(id)` 提供 `SendText`、`SendVoice`、`SendVideo`、`Reply`、`SendJSON`、`SendXML`、`SendFile`。引用必须显式提供本次消息 ID。
 

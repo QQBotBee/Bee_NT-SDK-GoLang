@@ -21,7 +21,6 @@ try {
     $env:GOOS = $hostTarget[0]; $env:GOARCH = $hostTarget[1]; $env:CGO_ENABLED = '0'
     $pluginSourcePath = (Resolve-Path -LiteralPath $PluginSource -ErrorAction Stop).Path
     if (-not (Test-Path -LiteralPath $pluginSourcePath -PathType Leaf)) { throw 'PluginSource must be a source file' }
-    $defaultPluginSource = [IO.Path]::GetFullPath((Join-Path $project 'plugin_main.go'))
     New-Item -ItemType Directory -Force -Path $temp, $output | Out-Null
     Write-Host '[1/4] Generate BeeNT plugin metadata'
     & $toolchain.Executable run ./other/buildmeta $pluginSourcePath $temp
@@ -32,18 +31,13 @@ try {
     $target = Join-Path $output ($DllName + '.dll')
     Write-Host '[2/4] Build Windows x86 Go worker'
     $env:GOOS = 'windows'; $env:GOARCH = '386'; $env:CGO_ENABLED = '0'
-    $workerArguments = @('build', '-buildvcs=false', '-trimpath', '-ldflags=-s -w', '-o', (Join-Path $temp 'beent_go_worker.exe'))
-    if (-not $pluginSourcePath.Equals($defaultPluginSource, [StringComparison]::OrdinalIgnoreCase)) {
-        $overlayPath = Join-Path $temp 'plugin-overlay.json'
-        $replacements = @{}
-        $replacements[$defaultPluginSource] = $pluginSourcePath
-        $overlay = @{ Replace = $replacements } | ConvertTo-Json -Depth 4
-        [IO.File]::WriteAllText($overlayPath, $overlay, (New-Object Text.UTF8Encoding($false)))
-        $workerArguments += '-overlay=' + $overlayPath
-    }
-    $workerArguments += '.'
-    & $toolchain.Executable @workerArguments
-    if ($LASTEXITCODE -ne 0) { throw 'Go worker build failed' }
+    $workerSource = Join-Path $temp ('worker-' + [Guid]::NewGuid().ToString('N'))
+    Copy-BeeNTWorkerSources -ProjectPath $project -Destination $workerSource -PluginSource $pluginSourcePath
+    Push-Location $workerSource
+    try {
+        & $toolchain.Executable build -buildvcs=false -trimpath '-ldflags=-s -w' -o (Join-Path $temp 'beent_go_worker.exe') .
+        if ($LASTEXITCODE -ne 0) { throw 'Go worker build failed' }
+    } finally { Pop-Location }
     Write-Host '[3/4] Embed worker resource'
     Push-Location $temp
     try { & zig rc /c 65001 /fo worker.res worker.rc; if ($LASTEXITCODE -ne 0) { throw 'resource build failed' } } finally { Pop-Location }
