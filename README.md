@@ -536,7 +536,6 @@ func defaultSettingsModel() settingsModel {
 ├── types.go                     # 信息结构、列表解析、事件与缓存常量
 ├── ipc.go                       # API 请求关联、并发与超时
 ├── worker_runtime.go            # Worker 入口、消息读取与事件分发
-├── *_test.go                    # 对应源码的回归测试
 ├── build.bat                    # 唯一构建入口
 ├── go.mod / go.sum              # Go 1.20 兼容声明与模块依赖
 ├── docs/
@@ -557,7 +556,7 @@ func defaultSettingsModel() settingsModel {
 └── temp/                       # 工具链缓存与临时文件，不提交
 ```
 
-根目录 Go 文件同属一个插件包，按 SDK、业务、IPC 和窗口职责拆分。`worker_runtime.go` 是维护源码，直接参与编译；`*_test.go` 保留在对应源码旁。底层实现和测试工具集中在 `other/`，日常业务开发通过根目录 `build.bat` 构建。
+根目录 Go 文件同属一个插件包，按 SDK、业务、IPC 和窗口职责拆分。`worker_runtime.go` 是维护源码，直接参与编译；本地 `*_test.go` 由 Git 忽略，不随仓库分发。底层实现和测试工具集中在 `other/`，日常业务开发通过根目录 `build.bat` 构建。
 
 ## 架构说明
 
@@ -616,7 +615,7 @@ BeeNT 回调
 - Go Runtime 与 cgo 不进入 DLL；原生壳仅导入 KERNEL32.dll，不依赖 UCRT。
 - 根目录 `build.bat` 和 `other/BeeNTPlugin.def` 使用 ASCII/CRLF，Git 按原始字节保存。
 - Go、Markdown 及其它主要文本按 `.gitattributes` 使用 UTF-8/LF；Windows PowerShell 脚本新增中文时需注意编码识别。
-- `build/`、`temp/`、运行数据、DLL、EXE、RES、LIB 和 PDB 等不提交；SDK 源码和回归测试需要保留。
+- `build/`、`temp/`、运行数据、DLL、EXE、RES、LIB、PDB 和本地 `*_test.go` 不提交；保留构建必需的 SDK 源码。
 
 ## 开发文档
 

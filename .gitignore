@@ -43,5 +43,7 @@ Desktop.ini
 *.rej
 *.tmp
 
-# worker_runtime.go and all *_test.go files are maintained SDK sources.
-# Do not copy the legacy SDK rules that ignore those files.
+# Local test files
+*_test.go
+
+# worker_runtime.go is required SDK source and must remain tracked.

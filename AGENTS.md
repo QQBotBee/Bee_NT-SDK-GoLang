@@ -12,7 +12,7 @@
 - `ipc.go` / `worker_runtime.go`：维护中的 Worker 源码，直接参与编译，不能忽略或当成生成物覆盖。
 - `other/`：原生 C 壳、无 CRT 支持、导出表、构建工具和内部回归测试；详见 [other/README.md](other/README.md)。
 - `other/tests/fixtures/`：内部测试业务与数据，不作为公开构建模式。
-- 测试放在对应代码旁，保留 `*_test.go`；`build/`、`temp/` 和运行数据属于生成物，不提交。
+- 本地测试可放在对应代码旁；`*_test.go` 由 Git 忽略，不提交。`build/`、`temp/` 和运行数据同样不提交。
 
 普通业务集中修改业务和设置文件。SDK、IPC、C 壳或构建工具需要改动时，应说明接口依据，并执行相应回归；不要为了排版或目录对齐改写已经验证的 ABI 与生命周期。
 

@@ -52,7 +52,7 @@
 | 文件 | 用途与边界 |
 | --- | --- |
 | [plugin_main.go](../plugin_main.go) | 四项元数据、初始化、启用/禁用、消息、事件和设置入口，主要业务修改位置 |
-| 业务辅助 `.go` / `*_test.go` | 解析、权限、配置、状态、外部服务；继续使用 `package main` |
+| 业务辅助 `.go` / 本地 `*_test.go` | 解析、权限、配置、状态、外部服务；继续使用 `package main`，`*_test.go` 由 Git 忽略，不提交 |
 | [settings.go](../settings.go) | Windows 原生窗口模型、布局、绘制和消息处理；只在需要界面变化时修改 |
 | [beent_sdk.go](../beent_sdk.go)、[api_methods.go](../api_methods.go)、[types.go](../types.go) | SDK构造、97个API、返回类型、31个事件值；业务开发先读取并复用 |
 | [worker_runtime.go](../worker_runtime.go)、[ipc.go](../ipc.go) | 事件分发、唯一reader、API请求关联与超时；普通业务无需修改 |

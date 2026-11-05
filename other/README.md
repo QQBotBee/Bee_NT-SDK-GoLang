@@ -13,7 +13,7 @@
 | `build.ps1` | 由根目录 build.bat 调用的统一构建实现 |
 | `build-tools.ps1` | 固定工具链下载、PE/资源/导入表核验 |
 | `buildmeta/main.go` | 从插件常量生成元数据、资源定义与默认输出名 |
-| `buildmeta/main_test.go` | 元数据生成器回归测试 |
+| `buildmeta/main_test.go` | 本地元数据生成器回归测试，Git 忽略，不随仓库分发 |
 | `tests/` | C 模拟宿主、fixture Worker、内部回归入口与工具链门禁 |
 | `tests/fixtures/acceptance/` | 之前实机测试用的业务与测试源码，仅供内部回归 |
 
