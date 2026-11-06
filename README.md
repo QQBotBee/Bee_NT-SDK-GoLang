@@ -17,7 +17,7 @@ build\插件名.dll
 │   └── 通过核心模块地址调用框架 API
 └── 内嵌的 32 位 Go 工作进程
     ├── plugin_main.go 里的插件业务
-    ├── beent_api.go 里的框架 API 1～97
+    ├── beent_sdk.go 里的框架 API 1～97、IPC 与事件分发
     └── settings.go 里的原生设置窗口
 ```
 
@@ -93,7 +93,7 @@ Bee×NT 没有独立的初始化回调。框架调用 `BeeNT_初始化` 时只�
 
 ## 调用框架 API
 
-`beent_api.go` 封装了框架 API 1～97，方法编号与易语言 SDK 的框架调用编号一一对应。
+`beent_sdk.go` 封装了框架 API 1～97，方法编号与易语言 SDK 的框架调用编号一一对应，完整清单见 [docs/API参考.md](docs/API参考.md)。
 
 ```go
 api, err := requireAPI()
@@ -130,18 +130,19 @@ dir, err := api.GetAppDataDir()
 D:\Softs\go1.20.14\go\bin\go.exe test ./...
 ```
 
-测试覆盖 IPC 往返、事件分发、命令行参数、API 参数顺序和返回解析。完整的生命周期、消息回调和设置窗口仍需要在真实的 Bee×NT 里验证。
+测试文件 `*_test.go` 只在本地使用，已加入 `.gitignore`，不提交到仓库。完整的生命周期、消息回调和设置窗口仍需要在真实的 Bee×NT 里验证。
 
 ## 目录
 
 | 文件 | 作用 |
 | --- | --- |
 | `plugin_main.go` | 插件业务，改这里 |
-| `beent_sdk.go` | 常量、数据类型、协议分隔符 |
-| `beent_api.go` | 框架 API 1～97 |
-| `worker.go` | 工作进程的 IPC 与事件分发 |
+| `beent_sdk.go` | 常量、数据类型、框架 API 1～97、IPC 与事件分发 |
 | `settings.go` | 设置窗口与宿主监控 |
+| `settings_other.go` | 非 Windows 平台的空实现，仅供 vet 与测试编译 |
+| `docs\` | AI 开发指南、API 参考、设置窗口开发规范 |
 | `other\beent_bridge.c` | 纯 C 壳 |
 | `other\BeeNTPlugin.def` | 导出定义，GBK 编码，不要改编码 |
 | `other\buildmeta` | 构建期读取插件常量、生成 C 头 |
+| `other\worker_runtime.go` | 工作进程 `main` 入口，构建时复制到根目录，不要在根目录手改 |
 | `build.bat` | 一键构建 |
