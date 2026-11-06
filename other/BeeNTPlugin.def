@@ -1,3 +1,4 @@
 LIBRARY BeeNTGoPlugin
 EXPORTS
-    botPluginLoad=botPluginLoad@8
+  BeeNT_≥ı ºªØ=BeeNT_Initialize
+  botPluginLoad=BeeNT_Initialize

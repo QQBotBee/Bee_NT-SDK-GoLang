@@ -10,6 +10,7 @@ import (
 	"unsafe"
 )
 
+// 设置窗口的基准尺寸，按 DPI 缩放。
 const (
 	settingsBaseWidth       = 640
 	settingsBaseHeight      = 420
@@ -22,8 +23,6 @@ type settingsLayout struct {
 	ClientHeight int
 	Padding      int
 	TitleHeight  int
-	Resizable    bool
-	Maximizable  bool
 }
 
 type settingsModel struct {
@@ -45,8 +44,6 @@ func defaultSettingsLayout(dpi int) settingsLayout {
 		ClientHeight: scaleDPI(settingsBaseHeight, dpi),
 		Padding:      scaleDPI(settingsBasePadding, dpi),
 		TitleHeight:  scaleDPI(settingsBaseTitleHeight, dpi),
-		Resizable:    false,
-		Maximizable:  false,
 	}
 }
 
@@ -71,39 +68,35 @@ func defaultSettingsModel() settingsModel {
 }
 
 const (
-	synchronize       = 0x00100000
-	wmDestroy         = 0x0002
-	wmClose           = 0x0010
-	wmPaint           = 0x000f
-	wmEraseBkgnd      = 0x0014
-	wmGetMinMaxInfo   = 0x0024
-	swShow            = 5
-	swRestore         = 9
-	wsExTopmost       = 0x00000008
-	wsOverlapped      = 0x00000000
-	wsCaption         = 0x00c00000
-	wsSysMenu         = 0x00080000
-	wsMinimizeBox     = 0x00020000
-	cwUseDefault      = 0x80000000
-	colorWindow       = 5
-	idiApplication    = 32512
-	idcArrow          = 32512
-	dtLeft            = 0x00000000
-	dtCenter          = 0x00000001
-	dtVCenter         = 0x00000004
-	dtSingleLine      = 0x00000020
-	dtWordBreak       = 0x00000010
-	dtNoPrefix        = 0x00000800
-	transparent       = 1
-	fwNormal          = 400
-	fwSemiBold        = 600
-	logPixelsX        = 88
-	smCxScreen        = 0
-	mbOK              = 0
-	mbIconInformation = 0x40
-	swpNoSize         = 0x0001
-	swpNoMove         = 0x0002
-	swpShowWindow     = 0x0040
+	processSynchronize = 0x00100000
+	wmDestroy          = 0x0002
+	wmClose            = 0x0010
+	wmPaint            = 0x000f
+	wmEraseBkgnd       = 0x0014
+	wmGetMinMaxInfo    = 0x0024
+	swShow             = 5
+	swRestore          = 9
+	wsExTopmost        = 0x00000008
+	wsOverlapped       = 0x00000000
+	wsCaption          = 0x00c00000
+	wsSysMenu          = 0x00080000
+	wsMinimizeBox      = 0x00020000
+	colorWindow        = 5
+	idiApplication     = 32512
+	idcArrow           = 32512
+	dtLeft             = 0x00000000
+	dtVCenter          = 0x00000004
+	dtSingleLine       = 0x00000020
+	dtWordBreak        = 0x00000010
+	dtNoPrefix         = 0x00000800
+	transparent        = 1
+	fwNormal           = 400
+	fwSemiBold         = 600
+	logPixelsX         = 88
+	smCxScreen         = 0
+	swpNoSize          = 0x0001
+	swpNoMove          = 0x0002
+	swpShowWindow      = 0x0040
 )
 
 var hwndTopmost = ^uintptr(0)
@@ -142,9 +135,9 @@ var (
 	procReleaseDC           = user32.NewProc("ReleaseDC")
 	procGetDeviceCaps       = gdi32.NewProc("GetDeviceCaps")
 	procGetModuleHandleW    = kernel32.NewProc("GetModuleHandleW")
-	openProcess             = kernel32.NewProc("OpenProcess")
-	waitSingleObject        = kernel32.NewProc("WaitForSingleObject")
-	closeHandle             = kernel32.NewProc("CloseHandle")
+	procOpenProcess         = kernel32.NewProc("OpenProcess")
+	procWaitForSingleObject = kernel32.NewProc("WaitForSingleObject")
+	procCloseHandle         = kernel32.NewProc("CloseHandle")
 	procCreateFontW         = gdi32.NewProc("CreateFontW")
 	procSelectObject        = gdi32.NewProc("SelectObject")
 	procDeleteObject        = gdi32.NewProc("DeleteObject")
@@ -170,27 +163,20 @@ type windowPlacement struct {
 	NormalPosition           rect
 }
 type msg struct {
-	HWnd    uintptr
-	Message uint32
-	WParam  uintptr
-	LParam  uintptr
-	Time    uint32
-	Pt      point
-	Private uint32
+	HWnd, Message, WParam, LParam uintptr
+	Time                          uint32
+	Pt                            point
+	Private                       uint32
 }
 type paintStruct struct {
-	HDC       uintptr
-	Erase     int32
-	Paint     rect
-	Restore   int32
-	IncUpdate int32
-	Reserved  [32]byte
+	HDC, Erase, Restore, IncUpdate uintptr
+	Paint                          rect
+	Reserved                       [32]byte
 }
 type wndClassEx struct {
 	Size, Style          uint32
-	WndProc              uintptr
-	ClsExtra, WndExtra   int32
-	Instance             uintptr
+	WndProc, ClsExtra    uintptr
+	WndExtra, Instance   uintptr
 	Icon, Cursor         uintptr
 	Background, MenuName uintptr
 	ClassName, IconSmall uintptr
@@ -214,6 +200,7 @@ var settingsNative = struct {
 
 var settingsWndProc = syscall.NewCallback(settingsWindowProc)
 
+// showSettingsWindow 打开或聚焦设置窗口，重复调用只会把已有窗口置前。
 func showSettingsWindow() {
 	settingsNative.Lock()
 	if settingsNative.hwnd != 0 {
@@ -237,6 +224,7 @@ func showSettingsWindow() {
 	go settingsWindowThread(done)
 }
 
+// closeSettingsWindow 关闭设置窗口并等待窗口线程退出。
 func closeSettingsWindow() {
 	settingsNative.Lock()
 	done, hwnd := settingsNative.done, settingsNative.hwnd
@@ -269,7 +257,16 @@ func settingsWindowThread(done chan struct{}) {
 	title, _ := syscall.UTF16PtrFromString(defaultSettingsModel().Title)
 	cursor, _, _ := procLoadCursorW.Call(0, idcArrow)
 	icon, _, _ := procLoadIconW.Call(0, idiApplication)
-	class := wndClassEx{Size: uint32(unsafe.Sizeof(wndClassEx{})), WndProc: settingsWndProc, Instance: instance, Icon: icon, Cursor: cursor, Background: colorWindow + 1, ClassName: uintptr(unsafe.Pointer(className)), IconSmall: icon}
+	class := wndClassEx{
+		Size:       uint32(unsafe.Sizeof(wndClassEx{})),
+		WndProc:    settingsWndProc,
+		Instance:   instance,
+		Icon:       icon,
+		Cursor:     cursor,
+		Background: colorWindow + 1,
+		ClassName:  uintptr(unsafe.Pointer(className)),
+		IconSmall:  icon,
+	}
 	atom, _, _ := procRegisterClassExW.Call(uintptr(unsafe.Pointer(&class)))
 	if atom == 0 {
 		return
@@ -291,16 +288,11 @@ func settingsWindowThread(done chan struct{}) {
 	}
 	settingsNative.Lock()
 	settingsNative.hwnd = hwnd
-	closing := settingsNative.closing
 	settingsNative.Unlock()
-	if closing {
-		procDestroyWindow.Call(hwnd)
-	} else {
-		procShowWindow.Call(hwnd, swShow)
-		procSetWindowPos.Call(hwnd, hwndTopmost, 0, 0, 0, 0, swpNoMove|swpNoSize|swpShowWindow)
-		procSetForegroundWindow.Call(hwnd)
-		procUpdateWindow.Call(hwnd)
-	}
+	procShowWindow.Call(hwnd, swShow)
+	procSetWindowPos.Call(hwnd, hwndTopmost, 0, 0, 0, 0, swpNoMove|swpNoSize|swpShowWindow)
+	procSetForegroundWindow.Call(hwnd)
+	procUpdateWindow.Call(hwnd)
 	var message msg
 	for {
 		result, _, _ := procGetMessageW.Call(uintptr(unsafe.Pointer(&message)), 0, 0, 0)
@@ -415,18 +407,24 @@ func drawWindowText(hdc uintptr, text string, area rect, font uintptr, color uin
 }
 
 func rgb(r, g, b byte) uintptr { return uintptr(uint32(r) | uint32(g)<<8 | uint32(b)<<16) }
+
 func argb(a, r, g, b byte) uintptr {
 	return uintptr(uint32(a)<<24 | uint32(r)<<16 | uint32(g)<<8 | uint32(b))
 }
 
+// startHostWatcher 监控 Bee×NT 宿主进程，宿主退出后主动结束工作进程，
+// 避免插件工作进程在框架关闭后残留。
 func startHostWatcher(hostPID uint32) {
-	handle, _, _ := openProcess.Call(synchronize, 0, uintptr(hostPID))
+	if hostPID == 0 {
+		return
+	}
+	handle, _, _ := procOpenProcess.Call(processSynchronize, 0, uintptr(hostPID))
 	if handle == 0 {
 		return
 	}
 	go func() {
-		defer closeHandle.Call(handle)
-		waitSingleObject.Call(handle, 0xffffffff)
+		defer procCloseHandle.Call(handle)
+		procWaitForSingleObject.Call(handle, 0xffffffff)
 		os.Exit(0)
 	}()
 }

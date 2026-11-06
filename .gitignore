@@ -1,49 +1,13 @@
-# Build scratch and published artifacts
+# 构建产物
 /build/
 /temp/
-/plugin_data/
+worker_runtime.go
 
-# Native / Go binaries, linker intermediates and test output
-*.dll
+# 编辑器与系统
+.idea/
+.vscode/
 *.exe
-*.res
+*.dll
 *.lib
 *.pdb
-*.obj
-*.o
-*.a
-*.exp
-*.ilk
-*.test
-*.coverprofile
-coverage.out
-/coverage/
-*.log
-*.dmp
-
-# Local editors, agent work areas and worktrees
-.superpowers/
-.worktrees/
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-Thumbs.db
-Desktop.ini
-
-# Local snapshots and conflict / backup files
-/e.txt
-/local-snapshots/
-/source-snapshots/
-/.snapshots/
-*.bak
-*.orig
-*.rej
-*.tmp
-
-# Local test files
-*_test.go
-
-# other/worker_runtime.go is maintained source; build copies live under /temp/.
+*.res

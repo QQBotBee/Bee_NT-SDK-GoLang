@@ -1,4 +1,4 @@
-// Command buildmeta turns plugin constants into the C shell's metadata/resource inputs.
+// 构建工具：读取 plugin_main.go 的插件常量，生成 C 壳需要的元数据头和资源脚本。
 package main
 
 import (
@@ -17,7 +17,10 @@ import (
 	"unicode/utf16"
 
 	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 )
+
+const workerResourceID = 101
 
 type pluginMetadata struct {
 	Name        string `json:"name"`
@@ -35,128 +38,151 @@ func readPluginMetadata(reader io.Reader) (pluginMetadata, error) {
 	if err != nil {
 		return pluginMetadata{}, err
 	}
-	values := make(map[string]string)
-	for _, declaration := range file.Decls {
-		decl, ok := declaration.(*ast.GenDecl)
-		if !ok || decl.Tok != token.CONST {
-			continue
+	values := map[string]string{}
+	ast.Inspect(file, func(node ast.Node) bool {
+		spec, ok := node.(*ast.ValueSpec)
+		if !ok {
+			return true
 		}
-		for _, item := range decl.Specs {
-			spec := item.(*ast.ValueSpec)
-			for i, name := range spec.Names {
-				if i >= len(spec.Values) {
-					continue
-				}
-				literal, ok := spec.Values[i].(*ast.BasicLit)
-				if !ok || literal.Kind != token.STRING {
-					continue
-				}
-				value, err := strconv.Unquote(literal.Value)
-				if err == nil {
-					values[name.Name] = value
-				}
+		for index, name := range spec.Names {
+			if index >= len(spec.Values) {
+				continue
+			}
+			literal, ok := spec.Values[index].(*ast.BasicLit)
+			if !ok || literal.Kind != token.STRING {
+				continue
+			}
+			value, unquoteErr := strconv.Unquote(literal.Value)
+			if unquoteErr == nil {
+				values[name.Name] = value
 			}
 		}
+		return true
+	})
+	metadata := pluginMetadata{values["PluginName"], values["PluginAuthor"], values["PluginVersion"], values["PluginDescription"]}
+	if metadata.Name == "" || metadata.Author == "" || metadata.Version == "" {
+		return pluginMetadata{}, errors.New("plugin_main.go 缺少 PluginName、PluginAuthor 或 PluginVersion 字符串常量")
 	}
-	meta := pluginMetadata{values["PluginName"], values["PluginAuthor"], values["PluginVersion"], values["PluginDescription"]}
-	if meta.Name == "" || meta.Author == "" || meta.Version == "" {
-		return pluginMetadata{}, errors.New("plugin_main.go requires literal PluginName, PluginAuthor and PluginVersion string constants")
+	if err := validateName(metadata.Name); err != nil {
+		return pluginMetadata{}, err
 	}
-	return meta, nil
+	return metadata, nil
 }
 
 func validateName(name string) error {
-	if name == "" || name == "." || name == ".." || strings.HasSuffix(name, " ") || strings.HasSuffix(name, ".") {
-		return errors.New("PluginName must be a safe Windows directory name")
+	if name == "." || name == ".." || strings.HasSuffix(name, " ") || strings.HasSuffix(name, ".") {
+		return errors.New("PluginName 不能作为 Windows 目录名")
 	}
 	for _, ch := range name {
 		if ch < 32 || strings.ContainsRune(`<>:"/\|?*`, ch) {
-			return errors.New("PluginName contains an invalid Windows filename character")
+			return errors.New("PluginName 含有 Windows 文件名禁止的字符")
 		}
 	}
 	stem := strings.ToUpper(strings.SplitN(name, ".", 2)[0])
-	if stem == "CON" || stem == "PRN" || stem == "AUX" || stem == "NUL" ||
-		(len(stem) == 4 && (strings.HasPrefix(stem, "COM") || strings.HasPrefix(stem, "LPT")) && stem[3] >= '1' && stem[3] <= '9') {
-		return errors.New("PluginName is a reserved Windows filename")
+	reserved := stem == "CON" || stem == "PRN" || stem == "AUX" || stem == "NUL" ||
+		(len(stem) == 4 && (strings.HasPrefix(stem, "COM") || strings.HasPrefix(stem, "LPT")) && stem[3] >= '1' && stem[3] <= '9')
+	if reserved {
+		return errors.New("PluginName 是 Windows 保留名")
 	}
 	return nil
 }
 
-func metadataJSON(meta pluginMetadata) ([]byte, error) {
-	if err := validateName(meta.Name); err != nil {
-		return nil, err
-	}
-	if meta.Author == "" || meta.Version == "" {
-		return nil, errors.New("author/version cannot be empty")
-	}
-	data, err := json.Marshal(meta)
-	if err != nil {
-		return nil, err
-	}
-	encoded, err := simplifiedchinese.GBK.NewEncoder().Bytes(data)
-	if err != nil {
-		return nil, fmt.Errorf("metadata must be representable as GBK: %w", err)
-	}
-	return encoded, nil
+func encodeGBK(value []byte) ([]byte, error) {
+	encoded, _, err := transform.Bytes(simplifiedchinese.GBK.NewEncoder(), value)
+	return encoded, err
 }
 
-func generatePluginHeader(meta pluginMetadata) ([]byte, error) {
-	data, err := metadataJSON(meta)
+func generatePluginHeader(metadata pluginMetadata) ([]byte, error) {
+	jsonData, err := json.Marshal(metadata)
 	if err != nil {
 		return nil, err
 	}
-	var out bytes.Buffer
-	out.WriteString("#ifndef BEENT_PLUGIN_CONFIG_H\n#define BEENT_PLUGIN_CONFIG_H\n#include <windows.h>\n#define BEENT_WORKER_RESOURCE_ID 101\n")
-	out.WriteString("static const WCHAR BEENT_PLUGIN_NAME_W[] = {")
-	for _, unit := range append(utf16.Encode([]rune(meta.Name)), 0) {
-		fmt.Fprintf(&out, "0x%04x,", unit)
+	gbkJSON, err := encodeGBK(jsonData)
+	if err != nil {
+		return nil, fmt.Errorf("插件信息无法用 GBK 表示: %w", err)
 	}
-	out.WriteString("};\nstatic const unsigned char BEENT_PLUGIN_METADATA_JSON_GBK[] = {\n")
-	for i, b := range append(data, 0) {
-		if i%16 == 0 {
-			out.WriteByte('\n')
+	gbkJSON = append(gbkJSON, 0)
+	units := append(utf16.Encode([]rune(metadata.Name)), 0)
+	var output bytes.Buffer
+	output.WriteString("#ifndef BEENT_PLUGIN_CONFIG_H\n#define BEENT_PLUGIN_CONFIG_H\n\n#include <windows.h>\n\n")
+	fmt.Fprintf(&output, "#define BEENT_WORKER_RESOURCE_ID %d\n#define BEENT_WORKER_FILENAME L\"beent_go_worker.exe\"\n\n", workerResourceID)
+	output.WriteString("static const WCHAR BEENT_PLUGIN_NAME_W[] = {")
+	for index, unit := range units {
+		if index > 0 {
+			output.WriteString(",")
 		}
-		fmt.Fprintf(&out, "0x%02x,", b)
+		fmt.Fprintf(&output, "0x%04x", unit)
 	}
-	out.WriteString("\n};\n#endif\n")
-	return out.Bytes(), nil
+	output.WriteString("};\n\nstatic const unsigned char BEENT_PLUGIN_METADATA_JSON_GBK[] = {\n")
+	for index, value := range gbkJSON {
+		if index%12 == 0 {
+			output.WriteString("    ")
+		}
+		fmt.Fprintf(&output, "0x%02x,", value)
+		if index%12 == 11 || index == len(gbkJSON)-1 {
+			output.WriteByte('\n')
+		} else {
+			output.WriteByte(' ')
+		}
+	}
+	output.WriteString("};\n\n#endif\n")
+	return output.Bytes(), nil
 }
 
-func run(args []string) error {
-	if len(args) != 2 {
-		return errors.New("usage: go run ./other/buildmeta plugin_main.go output-dir")
-	}
-	f, err := os.Open(args[0])
+func materializeWorkerRuntime(projectDir string) error {
+	source, err := os.ReadFile(filepath.Join(projectDir, "other", "worker_runtime.go"))
 	if err != nil {
-		return err
+		return fmt.Errorf("读取工作进程运行时: %w", err)
 	}
-	defer f.Close()
-	meta, err := readPluginMetadata(f)
-	if err != nil {
-		return err
+	source = bytes.ReplaceAll(source, []byte("\r\n"), []byte("\n"))
+	const buildTag = "//go:build beent_worker_runtime\n\n"
+	if !bytes.HasPrefix(source, []byte(buildTag)) {
+		return errors.New("other/worker_runtime.go 缺少 beent_worker_runtime 构建标签")
 	}
-	header, err := generatePluginHeader(meta)
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(args[1], 0755); err != nil {
-		return err
-	}
-	for name, data := range map[string][]byte{
-		"plugin_config.h": header,
-		"worker.rc":       []byte("101 RCDATA \"beent_go_worker.exe\"\r\n"),
-		"plugin_name.txt": []byte(meta.Name),
-	} {
-		if err := os.WriteFile(filepath.Join(args[1], name), data, 0644); err != nil {
-			return err
-		}
-	}
-	return nil
+	return os.WriteFile(filepath.Join(projectDir, "worker_runtime.go"), bytes.TrimPrefix(source, []byte(buildTag)), 0o644)
 }
 
 func main() {
-	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "BeeNT metadata:", err)
-		os.Exit(1)
+	if len(os.Args) != 3 {
+		fmt.Fprintln(os.Stderr, "用法: go run ./other/buildmeta plugin_main.go 输出目录")
+		os.Exit(2)
 	}
+	source, err := os.Open(os.Args[1])
+	if err != nil {
+		fail(err)
+	}
+	metadata, err := readPluginMetadata(source)
+	source.Close()
+	if err != nil {
+		fail(err)
+	}
+	header, err := generatePluginHeader(metadata)
+	if err != nil {
+		fail(err)
+	}
+	if err := os.MkdirAll(os.Args[2], 0o755); err != nil {
+		fail(err)
+	}
+	if err := os.WriteFile(filepath.Join(os.Args[2], "plugin_config.h"), header, 0o644); err != nil {
+		fail(err)
+	}
+	rc := fmt.Sprintf("%d RCDATA \"beent_go_worker.exe\"\r\n", workerResourceID)
+	if err := os.WriteFile(filepath.Join(os.Args[2], "worker.rc"), []byte(rc), 0o644); err != nil {
+		fail(err)
+	}
+	if err := materializeWorkerRuntime(filepath.Dir(os.Args[1])); err != nil {
+		fail(err)
+	}
+	gbkName, err := encodeGBK([]byte(metadata.Name))
+	if err != nil {
+		fail(fmt.Errorf("插件名称无法用 GBK 表示: %w", err))
+	}
+	if _, err := os.Stdout.Write(append(gbkName, '\r', '\n')); err != nil {
+		fail(err)
+	}
+}
+
+func fail(err error) {
+	fmt.Fprintln(os.Stderr, "元数据生成失败:", err)
+	os.Exit(1)
 }
