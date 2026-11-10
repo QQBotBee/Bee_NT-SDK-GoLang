@@ -77,7 +77,7 @@ C 壳发给工作进程的 `event` 消息，`Event` 字段取值：
 `build.bat` 分四步：
 
 1. `go run ./other/buildmeta`：读取 `plugin_main.go` 常量，生成 `temp\plugin_config.h`、`temp\worker.rc`，并把 `other\worker_runtime.go`（带 `beent_worker_runtime` 构建标签的 `main` 入口）去掉构建标签后复制成根目录的 `worker_runtime.go`。
-2. 用 Go 1.20.14 编译 32 位工作进程，编译后立即删除根目录的 `worker_runtime.go`，并核对产物的 Go 版本。
+2. 用固定的 go-legacy-win7 1.27.3-1 编译 32 位工作进程，编译后立即删除根目录的 `worker_runtime.go`，并核对产物的 Go 版本和 PE 子系统版本（必须是 6.1）。
 3. `zig rc` 把工作进程编成资源。
 4. `zig cc` 链接纯 C 的 PE32 DLL。
 

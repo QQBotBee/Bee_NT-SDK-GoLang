@@ -8,17 +8,10 @@ echo BeeNT Go Plugin Builder
 echo ========================================
 echo.
 
-set "REQUIRED_GO_VERSION=go1.20.14"
-set "BEE_GO_EXE="
-set "BEE_GO_VERSION="
-set "GOTOOLCHAIN=local"
-set "GOWORK=off"
-set "GOROOT="
-for /f "delims=" %%G in ('where go.exe 2^>nul') do if not defined BEE_GO_EXE set "BEE_GO_EXE=%%G"
-if not defined BEE_GO_EXE goto :missing_go
-for /f "tokens=3" %%V in ('call "%BEE_GO_EXE%" version 2^>nul') do set "BEE_GO_VERSION=%%V"
-if not "%BEE_GO_VERSION%"=="%REQUIRED_GO_VERSION%" goto :wrong_go
-echo Compiler: %BEE_GO_EXE% (%BEE_GO_VERSION%)
+rem pinned toolchain: go-legacy-win7 inside .toolchain, never the Go on PATH
+call "%~dp0other\go_env.bat"
+if errorlevel 1 goto :error_exit
+echo Compiler: %BEE_GO_EXE% ^(%BEE_GO_VERSION%, go-legacy-win7 %BEE_GO_FORK_VERSION%^)
 where zig >nul 2>nul || goto :missing_zig
 
 if exist temp rmdir /s /q temp
@@ -48,6 +41,8 @@ if not "%BUILD_RESULT%"=="0" goto :fail
 set "BEE_WORKER_GO_VERSION="
 for /f "tokens=2" %%V in ('call "%BEE_GO_EXE%" version temp\beent_go_worker.exe 2^>nul') do set "BEE_WORKER_GO_VERSION=%%V"
 if not "%BEE_WORKER_GO_VERSION%"=="%REQUIRED_GO_VERSION%" goto :wrong_worker_go
+powershell -NoProfile -ExecutionPolicy Bypass -File other\go_toolchain.ps1 -Action CheckPE -Path temp\beent_go_worker.exe
+if errorlevel 1 goto :wrong_worker_go
 
 echo [3/4] compiling embedded worker resource...
 pushd temp
@@ -65,23 +60,8 @@ echo build succeeded: build\%DLL_NAME%.dll
 pause
 exit /b 0
 
-:missing_go
-echo error: Go 1.20.14 was not found on PATH.
-goto :download_go
-
-:wrong_go
-echo error: this project requires exactly Go 1.20.14, current compiler is %BEE_GO_VERSION%
-echo compiler path: %BEE_GO_EXE%
-goto :download_go
-
-:download_go
-echo download Go 1.20.14 from https://go.dev/dl/#go1.20.14
-echo put its bin directory ahead of other Go versions in PATH, then open a new CMD.
-echo check with: where go.exe   and   go version
-goto :error_exit
-
 :wrong_worker_go
-echo error: the worker was not built with Go 1.20.14, build aborted.
+echo error: the worker was not built with go-legacy-win7 %BEE_GO_FORK_VERSION% ^(version: %BEE_WORKER_GO_VERSION%^), build aborted.
 goto :fail
 
 :missing_zig

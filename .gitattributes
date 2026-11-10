@@ -1,3 +1,6 @@
 # 以下文件必须保持 GBK 编码与 CRLF 换行，禁止 Git 做换行符或编码转换。
 build.bat binary
 other/BeeNTPlugin.def binary
+other/bee-go.bat binary
+other/go_env.bat binary
+other/go_toolchain.ps1 binary

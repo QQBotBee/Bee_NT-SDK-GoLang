@@ -6,12 +6,12 @@
 
 ## 构建与检查
 
-- `go test ./...`：跑本地的单元测试（`*_test.go` 不入库，没有测试文件时只做编译检查）。
-- `go vet ./...`：静态检查。
+- `other\bee-go.bat test ./...`：跑本地的单元测试（`*_test.go` 不入库，没有测试文件时只做编译检查）。
+- `other\bee-go.bat vet ./...`：静态检查。
 - `build.bat`：用 Go 和 Zig 构建 32 位插件 DLL。
 - `build.bat MyPlugin.dll`：指定输出文件名。
 
-构建要求 Windows CMD、PATH 里第一个 `go.exe` 必须是 Go 1.20.14、Zig 在 PATH 里，产物是 `build\插件名.dll`。测试和 vet 也用 Go 1.20.14。本机这个版本在 `D:\Softs\go1.20.14\go\bin`。不要升级发布编译器：兼容 Windows Server 2012 R2 需要钉死这个工具链。`go.mod` 只声明语言版本，`build.bat` 负责核对编译器版本，并在嵌入前核对工作进程的实际版本。
+构建要求 Windows CMD、Windows PowerShell，Zig 在 PATH 里，产物是 `build\插件名.dll`。Go 工具链固定为 go-legacy-win7 1.27.3-1（https://github.com/thongtech/go-legacy-win7），不用官方 Go，也不用 PATH 里的任何 `go.exe`：`other\go_env.bat` 把发布包下载到 `.toolchain\`、校验写死的 SHA-256，并设置 `GOROOT`、`GOTOOLCHAIN=local`、`GOWORK=off`。所有 go 命令都通过 `other\bee-go.bat` 执行，测试和 vet 与构建用同一个工具链。兼容 Windows 7 和 Windows Server 2012 R2 依赖这个 fork，不要换回官方 Go；升级 fork 版本时要同步改 `other\go_env.bat` 的版本号和 `other\go_toolchain.ps1` 里的版本与哈希。fork 的 `go version` 与官方相同，所以 `build.bat` 在嵌入前还会检查工作进程的 PE 子系统版本（fork 为 6.1，官方为 10.0）。`go.mod` 声明 `go 1.27.3`，只决定语言规则，不要加 `toolchain` 行。
 
 ## 编码与命名
 

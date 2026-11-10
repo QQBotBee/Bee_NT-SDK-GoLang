@@ -14,3 +14,6 @@
 
 # 本地测试文件，不提交
 *_test.go
+
+# 固定 Go 工具链（go-legacy-win7）下载缓存
+/.toolchain/

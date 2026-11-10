@@ -25,11 +25,17 @@ build\插件名.dll
 
 | 工具 | 要求 |
 | --- | --- |
-| Go | 必须是 1.20.14，且是 PATH 里第一个 `go.exe` |
+| Go | 固定使用 go-legacy-win7 1.27.3-1，构建时自动下载，不使用 PATH 里的 Go |
 | Zig | 已加入 PATH，用来编译 C 壳 |
 | 系统 | Windows，框架本身是 32 位进程 |
 
-本机的 Go 1.20.14 在 `D:\Softs\go1.20.14\go\bin`。构建脚本会检查版本，版本不对直接停止，不会自动下载或切换。
+为兼容 Windows 7/8/8.1 和 Windows Server 2012 R2，本项目不使用官方 Go，而是固定使用 [go-legacy-win7](https://github.com/thongtech/go-legacy-win7/releases/tag/v1.27.3-1) 1.27.3-1（基于 Go 1.27.3、保留旧版 Windows 支持的 fork）。
+
+- 首次构建时，`other\go_env.bat` 下载对应架构的 ZIP，校验 SHA-256 后解压到项目内的 `.toolchain\go-legacy-win7-1.27.3-1\go`，之后直接复用。
+- 脚本把 `GOROOT` 设为这份工具链，设置 `GOTOOLCHAIN=local` 和 `GOWORK=off`，PATH 里的官方 Go 不会被使用。
+- fork 的 `go version` 与官方 Go 1.27.3 输出相同，所以打包前还会检查工作进程的 PE 子系统版本：fork 为 6.1，官方 Go 为 10.0，不是 6.1 就停止。
+- 无法联网时，可把 `go-legacy-win7-1.27.3-1.windows_<架构>.zip` 手动放进 `.toolchain`，同样会先校验再用。要重装时删除 `.toolchain` 即可。
+- `go.mod` 声明 `go 1.27.3`，只决定语言规则，不决定编译器；不要添加 `toolchain` 行，否则可能触发下载官方工具链。
 
 ## 构建
 
@@ -127,8 +133,11 @@ dir, err := api.GetAppDataDir()
 ## 测试
 
 ```bat
-D:\Softs\go1.20.14\go\bin\go.exe test ./...
+other\bee-go.bat test ./...
+other\bee-go.bat vet ./...
 ```
+
+`other\bee-go.bat` 用固定工具链执行任意 go 命令，用法与 `go` 相同，会先切换到项目根目录。使用 VS Code 等编辑器时，把 Go 路径（例如 `go.goroot`）设为 `.toolchain\go-legacy-win7-1.27.3-1\go`。
 
 测试文件 `*_test.go` 只在本地使用，已加入 `.gitignore`，不提交到仓库。完整的生命周期、消息回调和设置窗口仍需要在真实的 Bee×NT 里验证。
 
@@ -145,4 +154,7 @@ D:\Softs\go1.20.14\go\bin\go.exe test ./...
 | `other\BeeNTPlugin.def` | 导出定义，GBK 编码，不要改编码 |
 | `other\buildmeta` | 构建期读取插件常量、生成 C 头 |
 | `other\worker_runtime.go` | 工作进程 `main` 入口，构建时复制到根目录，不要在根目录手改 |
+| `other\go_env.bat` | 准备固定的 go-legacy-win7 工具链，供构建和 `bee-go.bat` 调用 |
+| `other\go_toolchain.ps1` | 下载、校验、解压工具链，检查工作进程 PE 子系统版本 |
+| `other\bee-go.bat` | 用固定工具链执行 go 命令 |
 | `build.bat` | 一键构建 |
