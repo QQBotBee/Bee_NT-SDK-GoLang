@@ -46,6 +46,16 @@ _, _ = api.SendGroupMessage(groupID, "你好")
 
 方法清单见 [API参考.md](API参考.md)。
 
+### 回复和转发含 Unicode 转义的消息
+
+框架回调或 API 返回的消息正文可能混有字面量 `\uXXXX` 和普通文字，例如 `\uD83D\uDE00你好`。回复或转发时，直接把收到的正文（如回调参数 `content`）传给发送接口，保留原有的反斜杠和转义序列。Bee×NT 会在发送时自动解码这些序列。
+
+```go
+_, _ = api.SendGroupMessage(groupID, content)
+```
+
+在 Go 源码里写固定示例时，原始字符串字面量 `` `\uD83D\uDE00你好` `` 和双引号形式 `"\\uD83D\\uDE00你好"` 表示同一个运行时字符串。对已收到的正文调用 `strconv.Unquote`、把正文当作 JSON 字符串再解码、手工替换转义序列或额外添加反斜杠，都可能导致框架转换失败或乱码。
+
 ## 纪律
 
 1. 框架 API 只能在回调执行期间调用。C 壳只在等待 `event_result` 时处理 `api_call`，回调之外发出的调用得不到应答，所以 SDK 直接返回 `ErrOutsideCallback`。不要在回调里启动 goroutine 去调用框架后再让回调先返回。

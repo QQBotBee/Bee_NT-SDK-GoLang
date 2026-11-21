@@ -45,6 +45,8 @@ id, err := api.SendGroupMessage(groupID, "大家好")
 
 ### 发送消息
 
+发送框架返回的消息正文时，原样保留其中的字面量 `\uXXXX`，包括与普通文字混排的情况，由 Bee×NT 在发送时解码。该约定也适用于引用回复的 `content` 和合并消息的 `ForwardNode.Content`。示例见 [AI 开发指南](AI开发指南.md#回复和转发含-unicode-转义的消息)。
+
 | API | 方法 | 说明 |
 | --- | --- | --- |
 | 3 | `SendFriendMessage(friendQQ, content string) (string, error)` | 发送好友消息，返回消息 ID，失败返回原因 |

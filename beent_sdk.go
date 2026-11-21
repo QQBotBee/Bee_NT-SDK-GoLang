@@ -481,11 +481,13 @@ func (api *BeeNTAPI) Log(content string) error {
 // ---------- 发送消息 ----------
 
 // SendFriendMessage 发送好友消息，返回消息 ID，失败返回原因（API 3）。
+// 转发时原样传入框架返回的 content，其中的字面量 \uXXXX 由框架在发送时解码。
 func (api *BeeNTAPI) SendFriendMessage(friendQQ, content string) (string, error) {
 	return api.text(3, friendQQ, content)
 }
 
 // SendGroupMessage 发送群消息，返回消息 ID，失败返回原因（API 4）。
+// 转发时原样传入框架返回的 content，其中的字面量 \uXXXX 由框架在发送时解码。
 func (api *BeeNTAPI) SendGroupMessage(groupID, content string) (string, error) {
 	return api.text(4, groupID, content)
 }
@@ -587,11 +589,13 @@ func (api *BeeNTAPI) SendGroupMusic(groupID, platform, musicID string) (string, 
 
 // SendFriendForward 发送好友自定义合并消息（API 22）。
 // 节点格式为 QQ||昵称||消息内容，消息内容中的换行会自动转成 \n。
+// 节点正文来自框架时，原样保留其中的字面量 \uXXXX，由框架在发送时解码。
 func (api *BeeNTAPI) SendFriendForward(friendQQ string, nodes []ForwardNode) (string, error) {
 	return api.text(22, friendQQ, formatForward(nodes))
 }
 
 // SendGroupForward 发送群自定义合并消息（API 23）。
+// 节点正文来自框架时，原样保留其中的字面量 \uXXXX，由框架在发送时解码。
 func (api *BeeNTAPI) SendGroupForward(groupID string, nodes []ForwardNode) (string, error) {
 	return api.text(23, groupID, formatForward(nodes))
 }
@@ -1019,11 +1023,13 @@ func (api *BeeNTAPI) SendGroupAIVoice(groupID, characterID, text string) (string
 // ---------- 引用回复与精华 ----------
 
 // SendFriendReply 发送好友引用回复消息（API 82）。
+// 回复正文来自框架时，原样保留 content 中的字面量 \uXXXX，由框架在发送时解码。
 func (api *BeeNTAPI) SendFriendReply(friendQQ, messageID, content string) (string, error) {
 	return api.text(82, friendQQ, messageID, content)
 }
 
 // SendGroupReply 发送群引用回复消息（API 83）。
+// 回复正文来自框架时，原样保留 content 中的字面量 \uXXXX，由框架在发送时解码。
 func (api *BeeNTAPI) SendGroupReply(groupID, messageID, content string) (string, error) {
 	return api.text(83, groupID, messageID, content)
 }

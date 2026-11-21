@@ -38,6 +38,7 @@ func onSettings() {
 // 返回 MessageIntercept 拦截消息，返回 MessageIgnore 让后面的插件继续处理。
 func onFriendMessage(friendQQ, content, messageID string) int {
 	// 示例：api.SendFriendMessage(friendQQ, "你好")
+	// 原样转发用 api.SendFriendMessage(friendQQ, content)，其中的 \uXXXX 由框架在发送时解码。
 	_, _, _ = friendQQ, content, messageID
 	return MessageIgnore
 }
@@ -46,6 +47,7 @@ func onFriendMessage(friendQQ, content, messageID string) int {
 // 返回 MessageIntercept 拦截消息，返回 MessageIgnore 让后面的插件继续处理。
 func onGroupMessage(groupID, senderQQ, content, messageID string) int {
 	// 示例：api.SendGroupMessage(groupID, "大家好")
+	// 原样转发用 api.SendGroupMessage(groupID, content)，其中的 \uXXXX 由框架在发送时解码。
 	_, _, _, _ = groupID, senderQQ, content, messageID
 	return MessageIgnore
 }
